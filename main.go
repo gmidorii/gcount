@@ -17,7 +17,7 @@ import (
 var resultSet = mapset.NewSet()
 
 func main() {
-	in := flag.String("i", "", "input file directory")
+	in := flag.String("i", "./input", "input file directory")
 	// out := flag.String("o", "", "output file directory")
 	routine := flag.Int("g", 3, "goroutine number")
 	flag.Parse()
@@ -30,7 +30,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("err: %s", err)
 	}
-	fmt.Println(aggregations)
 
 	files, err := getAllFilePath(*in)
 	if err != nil {
@@ -41,9 +40,11 @@ func main() {
 	var wg sync.WaitGroup
 	for i := 0; i < *routine; i++ {
 		wg.Add(1)
-		go worker(divided[i], aggregations)
+		go worker(divided[i], aggregations, &wg)
 	}
 	wg.Wait()
+
+	fmt.Println(resultSet.String())
 }
 
 func getAllFilePath(input string) ([]string, error) {

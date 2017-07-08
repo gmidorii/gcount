@@ -1,4 +1,4 @@
-- name : /hoge
+- name : hogehoge
   id:
     type: query
     key: uid
@@ -9,13 +9,113 @@
         value: hoge
       - key: kind
         value: picture
-- name : /test
+- name : hogehoge1
+  id:
+    type: query
+    key: uid
+  and:
+    type: query
+    params:
+      - key: type
+        value: hoge
+      - key: kind
+        value: picture
+- name : hogehoge2
+  id:
+    type: query
+    key: uid
+  and:
+    type: query
+    params:
+      - key: type
+        value: hoge
+      - key: kind
+        value: picture
+- name : hogehoge3
+  id:
+    type: query
+    key: uid
+  and:
+    type: query
+    params:
+      - key: type
+        value: hoge
+      - key: kind
+        value: picture
+- name : hogehoge4
+  id:
+    type: query
+    key: uid
+  and:
+    type: query
+    params:
+      - key: type
+        value: hoge
+      - key: kind
+        value: picture
+- name : hogehoge5
+  id:
+    type: query
+    key: uid
+  and:
+    type: query
+    params:
+      - key: type
+        value: hoge
+      - key: kind
+        value: picture
+- name : hoge1
+  id:
+    type: query
+    key: uid
+  and:
+    type: query
+    params:
+      - key: type
+        value: type
+      - key: kind
+        value: picture
+- name : hoge2
+  id:
+    type: query
+    key: uid
+  and:
+    type: query
+    params:
+      - key: type
+        value: type
+      - key: kind
+        value: picture
+- name : hoge3
+  id:
+    type: query
+    key: uid
+  and:
+    type: query
+    params:
+      - key: type
+        value: type
+      - key: kind
+        value: picture
+- name : hoge
+  id:
+    type: query
+    key: uid
+  and:
+    type: query
+    params:
+      - key: type
+        value: hoge
+      - key: kind
+        value: picture
+- name : test
   id:
     type: header
-    column: 22
+    key: hoge-uid
+    column: 21
   or:
     type: header
     params:
     - column: 24
-      key: hoge-uid
+      key: hoge-condition-id
       value: picture
