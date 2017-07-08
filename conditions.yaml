@@ -1,0 +1,21 @@
+- name : /hoge
+  id:
+    type: query
+    key: uid
+  and:
+    type: query
+    params:
+      - key: type
+        value: hoge
+      - key: kind
+        value: picture
+- name : /test
+  id:
+    type: header
+    column: 10
+  or:
+    type: header
+    params:
+    - column: 12
+      key: hoge-uid
+      value: picture

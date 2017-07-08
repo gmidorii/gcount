@@ -1,40 +1,42 @@
 package main
 
 import (
-	"flag"
+	"fmt"
 	"log"
+	"os"
+
+	yaml "gopkg.in/yaml.v2"
 
 	"io/ioutil"
 
 	"path/filepath"
 
 	"strings"
-
-	"github.com/deckarep/golang-set"
 )
 
 type Aggregation struct {
-	Name       string
-	ID         ID
-	Conditions []Condition
+	Name string `yaml:"name"`
+	ID   ID     `yaml:"id"`
+	AND  AND    `yaml:"and,omitempty"`
+	OR   OR     `yaml:"or,omitempty"`
 }
 
 type ID struct {
-	Type   string
-	Key    string
-	Column int
+	Type   string `yaml:"type"`
+	Key    string `yaml:"key"`
+	Column int    `yaml:"column,omitempty"`
 }
 
 type Condition interface {
 	match(query map[string]string, headers []string) bool
 }
 
-type And struct {
-	Type   string
-	Params []ParamMap
+type AND struct {
+	Type   string     `yaml:"type"`
+	Params []ParamMap `yaml:"params"`
 }
 
-func (a *And) match(query map[string]string, headers []string) bool {
+func (a *AND) match(query map[string]string, headers []string) bool {
 	switch a.Type {
 	case "query":
 		for _, param := range a.Params {
@@ -64,24 +66,62 @@ func (a *And) match(query map[string]string, headers []string) bool {
 	}
 }
 
-type Or struct {
-	Type   string
-	Column int
-	Params []ParamMap
+type OR struct {
+	Type   string     `yaml:"type"`
+	Params []ParamMap `yaml:"params"`
+}
+
+func (a *OR) match(query map[string]string, headers []string) bool {
+	switch a.Type {
+	case "query":
+		for _, param := range a.Params {
+			v, ok := query[param.Key]
+			if ok != true {
+				continue
+			}
+			if v == param.Value {
+				return true
+			}
+		}
+		return false
+	case "header":
+		for _, v := range a.Params {
+			keyValue := strings.Split(headers[v.Column], "=")
+			if v.Key != keyValue[0] {
+				log.Println("log format error")
+				continue
+			}
+			if v.Value == keyValue[1] {
+				return true
+			}
+		}
+		return false
+	default:
+		return false
+	}
 }
 
 type ParamMap struct {
-	Column int
-	Key    string
-	Value  string
+	Column int    `yaml:"column,omitempty"`
+	Key    string `yaml:"key"`
+	Value  string `yaml:"value"`
 }
 
 func main() {
-	in := flag.String("i", "", "input file directory")
-	out := flag.String("o", "", "output file directory")
-	flag.Parse()
+	// in := flag.String("i", "", "input file directory")
+	// out := flag.String("o", "", "output file directory")
+	// flag.Parse()
 
-	set := mapset.NewSet()
+	// set := mapset.NewSet()
+	pwd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("err: %s", err)
+	}
+	aggregations, err := readCondition(filepath.Join(pwd, "conditions.yaml"))
+	if err != nil {
+		log.Fatalf("err: %s", err)
+	}
+	fmt.Println(aggregations)
 }
 
 func getAllFilePath(input string) ([]string, error) {
@@ -97,4 +137,23 @@ func getAllFilePath(input string) ([]string, error) {
 		paths = append(paths, filepath.Join(input, file.Name()))
 	}
 	return paths, nil
+}
+
+func readCondition(path string) ([]Aggregation, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+
+	var aggregations []Aggregation
+	err = yaml.Unmarshal(body, &aggregations)
+	if err != nil {
+		return nil, err
+	}
+	return aggregations, nil
 }
