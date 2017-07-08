@@ -17,6 +17,19 @@ type Aggregation struct {
 	OR   OR     `yaml:"or,omitempty"`
 }
 
+func (a *Aggregation) match(query map[string]string, headers []string) bool {
+	if a.AND.Type != "" && a.OR.Type != "" {
+		return a.AND.match(query, headers) && a.OR.match(query, headers)
+	}
+	if a.AND.Type != "" {
+		return a.AND.match(query, headers)
+	}
+	if a.OR.Type != "" {
+		return a.OR.match(query, headers)
+	}
+	return false
+}
+
 // ID is to aggregate value
 type ID struct {
 	Type   string `yaml:"type"`
@@ -112,6 +125,7 @@ func readCondition(path string) ([]Aggregation, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
 
 	body, err := ioutil.ReadAll(file)
 	if err != nil {
