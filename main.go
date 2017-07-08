@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 
 	"io/ioutil"
 
@@ -14,19 +13,16 @@ import (
 	"github.com/deckarep/golang-set"
 )
 
-var resultSet = mapset.NewSet()
+var resultMap = map[string]mapset.Set{}
 
 func main() {
 	in := flag.String("i", "./input", "input file directory")
 	// out := flag.String("o", "", "output file directory")
 	routine := flag.Int("g", 3, "goroutine number")
+	conditions := flag.String("c", "./conditions.yaml", "aggregation condition file (.yaml)")
 	flag.Parse()
 
-	pwd, err := os.Getwd()
-	if err != nil {
-		log.Fatalf("err: %s", err)
-	}
-	aggregations, err := readCondition(filepath.Join(pwd, "conditions.yaml"))
+	aggregations, err := readCondition(*conditions)
 	if err != nil {
 		log.Fatalf("err: %s", err)
 	}
@@ -44,7 +40,7 @@ func main() {
 	}
 	wg.Wait()
 
-	fmt.Println(resultSet.String())
+	fmt.Println(resultMap)
 }
 
 func getAllFilePath(input string) ([]string, error) {
