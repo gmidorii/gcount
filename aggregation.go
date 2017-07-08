@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
+
+	"net/url"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -17,15 +20,15 @@ type Aggregation struct {
 	OR   OR     `yaml:"or,omitempty"`
 }
 
-func (a *Aggregation) match(query map[string]string, headers []string) bool {
+func (a *Aggregation) match(query url.Values, values []string) bool {
 	if a.AND.Type != "" && a.OR.Type != "" {
-		return a.AND.match(query, headers) && a.OR.match(query, headers)
+		return a.AND.match(query, values) && a.OR.match(query, values)
 	}
 	if a.AND.Type != "" {
-		return a.AND.match(query, headers)
+		return a.AND.match(query, values)
 	}
 	if a.OR.Type != "" {
-		return a.OR.match(query, headers)
+		return a.OR.match(query, values)
 	}
 	return false
 }
@@ -35,6 +38,26 @@ type ID struct {
 	Type   string `yaml:"type"`
 	Key    string `yaml:"key"`
 	Column int    `yaml:"column,omitempty"`
+}
+
+func (id *ID) extract(query url.Values, values []string) (string, error) {
+	switch id.Type {
+	case "query":
+		vs, ok := query[id.Key]
+		if ok != true {
+			return "", errors.New("unexpected action: not found id key in query")
+		}
+		// first value
+		return vs[0], nil
+	case "header":
+		keyValue := strings.Split(strings.Trim(values[id.Column], "\""), "=")
+		if id.Key != keyValue[0] {
+			return "", errors.New("unexpected action: not found id key in header")
+		}
+		return keyValue[1], nil
+	default:
+		return "", errors.New("unexpected id type: " + id.Type)
+	}
 }
 
 type Condition interface {
@@ -47,22 +70,25 @@ type AND struct {
 	Params []ParamMap `yaml:"params"`
 }
 
-func (a *AND) match(query map[string]string, headers []string) bool {
+func (a *AND) match(query url.Values, headers []string) bool {
 	switch a.Type {
 	case "query":
 		for _, param := range a.Params {
-			v, ok := query[param.Key]
+			values, ok := query[param.Key]
 			if ok != true {
 				return false
 			}
-			if v != param.Value {
-				return false
+			// caution: multiple key
+			for _, v := range values {
+				if v != param.Value {
+					return false
+				}
 			}
 		}
 		return true
 	case "header":
 		for _, v := range a.Params {
-			keyValue := strings.Split(headers[v.Column], "=")
+			keyValue := strings.Split(strings.Trim(headers[v.Column], "\""), "=")
 			if v.Key != keyValue[0] {
 				log.Println("log format error")
 				return false
@@ -83,22 +109,25 @@ type OR struct {
 	Params []ParamMap `yaml:"params"`
 }
 
-func (a *OR) match(query map[string]string, headers []string) bool {
+func (a *OR) match(query url.Values, headers []string) bool {
 	switch a.Type {
 	case "query":
 		for _, param := range a.Params {
-			v, ok := query[param.Key]
+			values, ok := query[param.Key]
 			if ok != true {
 				continue
 			}
-			if v == param.Value {
-				return true
+			// caution: multiple key
+			for _, v := range values {
+				if v == param.Value {
+					return true
+				}
 			}
 		}
 		return false
 	case "header":
 		for _, v := range a.Params {
-			keyValue := strings.Split(headers[v.Column], "=")
+			keyValue := strings.Split(strings.Trim(headers[v.Column], "\""), "=")
 			if v.Key != keyValue[0] {
 				log.Println("log format error")
 				continue
