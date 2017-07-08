@@ -8,9 +8,12 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
+	"time"
 )
 
-func worker(files []string, aggregations []Aggregation) {
+func worker(files []string, aggregations []Aggregation, wg *sync.WaitGroup) {
+	start := time.Now()
 	var names []string
 	for _, v := range aggregations {
 		names = append(names, v.Name)
@@ -34,9 +37,20 @@ func worker(files []string, aggregations []Aggregation) {
 			if !containNames(line, names) {
 				continue
 			}
-			check(line)
+			id, err := check(line, aggregations)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			if id == "" {
+				continue
+			}
+			resultSet.Add(id)
 		}
 	}
+	end := time.Now()
+	fmt.Printf("%f s\n", end.Sub(start).Seconds())
+	wg.Done()
 }
 
 func containNames(str string, names []string) bool {
@@ -48,21 +62,22 @@ func containNames(str string, names []string) bool {
 	return false
 }
 
-func check(line string) bool {
+func check(line string, aggregations []Aggregation) (string, error) {
 	values := strings.Split(line, " ")
 	u, err := url.Parse(values[6])
 	if err != nil {
-		log.Fatal(err)
-		return false
+		return "", err
 	}
 	// /xxx/xxx/hoge/hoge -> hoge/hoge
 	api := strings.SplitN(u.Path, "/", 4)[3]
-	fmt.Println(api)
-	for key, values := range u.Query() {
-		for _, v := range values {
-			fmt.Println(key)
-			fmt.Println(v)
+	for _, v := range aggregations {
+		if api == v.Name {
+			if !v.match(u.Query(), values) {
+				break
+			}
+			return v.ID.extract(u.Query(), values)
 		}
 	}
-	return false
+	// not match in condition
+	return "", nil
 }
