@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"os"
+
 	"github.com/deckarep/golang-set"
 )
 
@@ -17,7 +19,7 @@ var resultMap = map[string]mapset.Set{}
 
 func main() {
 	in := flag.String("i", "./input", "input file directory")
-	// out := flag.String("o", "", "output file directory")
+	out := flag.String("o", "./output", "output file directory")
 	routine := flag.Int("g", 3, "goroutine number")
 	conditions := flag.String("c", "./conditions.yaml", "aggregation condition file (.yaml)")
 	flag.Parse()
@@ -40,7 +42,16 @@ func main() {
 	}
 	wg.Wait()
 
-	fmt.Println(resultMap)
+	for key, set := range resultMap {
+		file, err := os.Create(filepath.Join(*out, key))
+		if err != nil {
+			log.Fatalf("err: %s", err)
+		}
+		defer file.Close()
+		for _, value := range set.ToSlice() {
+			file.WriteString(fmt.Sprintf("%v\n", value))
+		}
+	}
 }
 
 func getAllFilePath(input string) ([]string, error) {

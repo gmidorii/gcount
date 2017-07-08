@@ -15,7 +15,8 @@
 vendor
 
 # test dir
-input
+input/
+output/
 log1
 
 # exec file
