@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"runtime"
 
 	"io/ioutil"
 
@@ -12,46 +13,60 @@ import (
 
 	"os"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/deckarep/golang-set"
+	"golang.org/x/sync/syncmap"
 )
 
-var resultMap = map[string]mapset.Set{}
+var resultMap = syncmap.Map{}
 
 func main() {
+	// pprof
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
+	// flag
 	in := flag.String("i", "./input", "input file directory")
 	out := flag.String("o", "./output", "output file directory")
-	routine := flag.Int("g", 3, "goroutine number")
 	conditions := flag.String("c", "./conditions.yaml", "aggregation condition file (.yaml)")
 	flag.Parse()
 
+	// setup
 	aggregations, err := readCondition(*conditions)
 	if err != nil {
 		log.Fatalf("err: %s", err)
 	}
-
 	files, err := getAllFilePath(*in)
 	if err != nil {
 		log.Fatalf("err: %s", err)
 	}
-	divided := chunk(files, *routine)
+	cpus := runtime.NumCPU()
+	runtime.GOMAXPROCS(cpus)
 
+	divided := chunk(files, cpus)
 	var wg sync.WaitGroup
-	for i := 0; i < *routine; i++ {
+	semaphone := make(chan int, cpus)
+	for i := 0; i < len(divided); i++ {
 		wg.Add(1)
-		go worker(divided[i], aggregations, &wg)
+		go worker(divided[i], aggregations, &wg, semaphone)
 	}
 	wg.Wait()
 
-	for key, set := range resultMap {
-		file, err := os.Create(filepath.Join(*out, key))
+	// output
+	resultMap.Range(func(key, set interface{}) bool {
+		file, err := os.Create(filepath.Join(*out, fmt.Sprintf("%v", key)))
 		if err != nil {
-			log.Fatalf("err: %s", err)
+			return false
 		}
 		defer file.Close()
-		for _, value := range set.ToSlice() {
+		for _, value := range set.(mapset.Set).ToSlice() {
 			file.WriteString(fmt.Sprintf("%v\n", value))
 		}
-	}
+		return true
+	})
 }
 
 func getAllFilePath(input string) ([]string, error) {
