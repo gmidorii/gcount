@@ -13,3 +13,10 @@
 # Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
 .glide/
 vendor
+
+# test dir
+input
+log1
+
+# exec file
+gcount
