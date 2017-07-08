@@ -14,7 +14,9 @@ import (
 	"github.com/deckarep/golang-set"
 )
 
-func worker(files []string, aggregations []Aggregation, wg *sync.WaitGroup) {
+func worker(files []string, aggregations []Aggregation, wg *sync.WaitGroup, sem chan int) {
+	defer wg.Done()
+	sem <- 1
 	start := time.Now()
 	var names []string
 	for _, v := range aggregations {
@@ -25,7 +27,7 @@ func worker(files []string, aggregations []Aggregation, wg *sync.WaitGroup) {
 	}
 	end := time.Now()
 	fmt.Printf("%f s\n", end.Sub(start).Seconds())
-	wg.Done()
+	<-sem
 }
 
 func work(v string, names []string, aggregations []Aggregation) {
@@ -56,15 +58,15 @@ func work(v string, names []string, aggregations []Aggregation) {
 			continue
 		}
 		for key, value := range idmap {
-			existSet, ok := resultMap[key]
+			existSet, ok := resultMap.Load(key)
 			if ok != true {
 				// initialize
 				set := mapset.NewSet()
 				set.Add(value)
-				resultMap[key] = set
+				resultMap.Store(key, set)
 				continue
 			}
-			existSet.Add(value)
+			existSet.(mapset.Set).Add(value)
 		}
 	}
 }
